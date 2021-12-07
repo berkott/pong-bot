@@ -9,3 +9,4 @@ Project by team KBBQ-E
 ## TODO:
 - Solder stuff:
   - Solder oled display
+- Epic bro
