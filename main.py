@@ -4,6 +4,7 @@ import board
 import digitalio
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
+from gpiozero import Servo
 
 # === Display Init ===
 BORDER = 5
@@ -31,10 +32,24 @@ GPIO.setwarnings(False)
 GPIO.setup(SHOOT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) 
 
 # === Joystick Init ===
+RIGHT_SWITCH = 10
+LEFT_SWITCH = 10
+UP_SWITCH = 10
+DOWN_SWITCH = 10
+
+GPIO.setup(RIGHT_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(LEFT_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(UP_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(DOWN_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 # === Flywheel Init ===
 
+
 # === Servo Init ===
+# Physical/Board pin 32
+# GPIO/BCM pin 12
+SERVO_SIGNAL_PIN = 12
+servo = Servo(25)
 
 # === Game Init ===
 game_start = False
@@ -75,16 +90,16 @@ def draw_menu():
     oled.image(image)
     oled.show()
 
-def update_display(shooter_angle, flywheel_speed):
+def update_display(shooter_angle, flywheel_speed, extra_text):
     # Draw a white background
-    draw.rectangle((BORDER // 2, BORDER // 2, oled.width - BORDER // 2 - 1, oled.height - BORDER // 2 - 1), outline=0, fill=0)
+    draw.rectangle((0, 0, oled.width, oled.height), outline=255, fill=0)
 
     font = ImageFont.load_default()
 
     text = f"Shooter Angle: {int(shooter_angle)}"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 - font_width // 2, oled.height // 2 - font_height - 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 - (font_height // 2) * 3),
         text,
         font=font,
         fill=255,
@@ -93,7 +108,16 @@ def update_display(shooter_angle, flywheel_speed):
     text = f"Flywheel Speed: {int(flywheel_speed)}"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 - font_width // 2, oled.height // 2 + 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 - font_height // 2),
+        text,
+        font=font,
+        fill=255,
+    )
+
+    text = extra_text
+    (font_width, font_height) = font.getsize(text)
+    draw.text(
+        (oled.width // 2 + 2, oled.height // 2 + (font_height // 2) * 3),
         text,
         font=font,
         fill=255,
@@ -108,25 +132,46 @@ draw_menu()
 
 while True:
     shoot_button_pressed = GPIO.input(SHOOT_BUTTON) == GPIO.HIGH
-    shooter_angle = 7
-    flywheel_speed = 8
-    button_pressed = False
+    shooter_angle = 0
+    flywheel_speed = 0
+
+    right_switch = GPIO.input(RIGHT_SWITCH) == GPIO.HIGH
+    left_switch = GPIO.input(LEFT_SWITCH) == GPIO.HIGH
+    up_switch = GPIO.input(UP_SWITCH) == GPIO.HIGH
+    down_switch = GPIO.input(DOWN_SWITCH) == GPIO.HIGH
 
     # Menu State
     if not game_start:
         if shoot_button_pressed:
             game_start = True
-    # Game State
-    else:
-        if shoot_button_pressed:
-            # Change motor stuff
-
-
             update_display(shooter_angle, flywheel_speed)
 
-    
-    #print(shoot_button)
-    #time.sleep(0.25)
+    # Game State
+    else:
+        if right_switch or left_switch or up_switch or down_switch:
+            flywheel_speed += 1 if up_switch else 0
+            flywheel_speed -= 1 if down_switch else 0
+            shooter_angle += 0.025 if right_switch else 0
+            shooter_angle -= 0.025 if left_switch else 0
+
+            servo.value = shooter_angle
+
+            update_display(shooter_angle, flywheel_speed, "Press to Shoot")
+
+        if shoot_button_pressed:
+            # Set Flywheel Here
+            for i in range(3):
+                update_display(shooter_angle, flywheel_speed, f"Drop in {3 - i}")
+                time.sleep(1)
+
+            for i in range(3):
+                update_display(shooter_angle, flywheel_speed, f"DROP NOW! {3 - i}")
+                time.sleep(1)
+
+            # Zero Flywheel Here
+            for i in range(3):
+                update_display(shooter_angle, flywheel_speed, f"Resetting {3 - i}")
+                time.sleep(1)
 
 
 # import RPi.GPIO as GPIO
