@@ -92,7 +92,9 @@ def draw_menu():
 
 def update_display(shooter_angle, flywheel_speed, extra_text):
     # Draw a white background
-    draw.rectangle((0, 0, oled.width, oled.height), outline=255, fill=0)
+    draw.rectangle((0, 0, oled.width, oled.height), outline=255, fill=255)
+
+    draw.rectangle((BORDER, BORDER, oled.width - BORDER - 1, oled.height - BORDER - 1), outline = 0, fill = 0)
 
     font = ImageFont.load_default()
 
@@ -117,7 +119,7 @@ def update_display(shooter_angle, flywheel_speed, extra_text):
     text = extra_text
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 + 2, oled.height // 2 + (font_height // 2) * 3),
+        (oled.width // 2 - font_width // 2, oled.height // 2 + (font_height // 2) * 3),
         text,
         font=font,
         fill=255,
@@ -144,7 +146,8 @@ while True:
     if not game_start:
         if shoot_button_pressed:
             game_start = True
-            update_display(shooter_angle, flywheel_speed)
+            update_display(shooter_angle, flywheel_speed, "Press to Shoot")
+            time.sleep(2)
 
     # Game State
     else:
@@ -172,6 +175,8 @@ while True:
             for i in range(3):
                 update_display(shooter_angle, flywheel_speed, f"Resetting {3 - i}")
                 time.sleep(1)
+
+            update_display(shooter_angle, flywheel_speed, "Press to Shoot")
 
 
 # import RPi.GPIO as GPIO
