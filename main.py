@@ -23,10 +23,10 @@ image = Image.new("1", (oled.width, oled.height))
 draw = ImageDraw.Draw(image)
 
 # === Shoot Button Init ===
-SHOOT_BUTTON = 10
+SHOOT_BUTTON = 15
 
 GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BOARD) # Physical pin numbering
+#GPIO.setmode(GPIO.BOARD) # Physical pin numbering
 
 GPIO.setup(SHOOT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) 
 
@@ -56,7 +56,7 @@ def draw_menu():
     text = "Welcome to Pong!"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 - font_width - 2, oled.height // 2 - font_height // 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 - font_height - 2),
         text,
         font=font,
         fill=255,
@@ -65,7 +65,7 @@ def draw_menu():
     text = "Press Button"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 + 2, oled.height // 2 - font_height // 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 + 2),
         text,
         font=font,
         fill=255,
@@ -77,14 +77,14 @@ def draw_menu():
 
 def update_display(shooter_angle, flywheel_speed):
     # Draw a white background
-    draw.rectangle((0, 0, oled.width, oled.height), outline=255, fill=0)
+    draw.rectangle((BORDER // 2, BORDER // 2, oled.width - BORDER // 2 - 1, oled.height - BORDER // 2 - 1), outline=0, fill=0)
 
     font = ImageFont.load_default()
 
     text = f"Shooter Angle: {int(shooter_angle)}"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 - font_width - 2, oled.height // 2 - font_height // 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 - font_height - 2),
         text,
         font=font,
         fill=255,
@@ -93,7 +93,7 @@ def update_display(shooter_angle, flywheel_speed):
     text = f"Flywheel Speed: {int(flywheel_speed)}"
     (font_width, font_height) = font.getsize(text)
     draw.text(
-        (oled.width // 2 + 2, oled.height // 2 - font_height // 2),
+        (oled.width // 2 - font_width // 2, oled.height // 2 + 2),
         text,
         font=font,
         fill=255,
