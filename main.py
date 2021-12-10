@@ -4,7 +4,7 @@ import board
 import digitalio
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
-from gpiozero import Servo
+from gpiozero import AngularServo
 
 # === Display Init ===
 BORDER = 5
@@ -29,12 +29,12 @@ SHOOT_BUTTON = 15
 GPIO.setwarnings(False)
 #GPIO.setmode(GPIO.BOARD) # Physical pin numbering
 
-GPIO.setup(SHOOT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) 
+GPIO.setup(SHOOT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 # === Joystick Init ===
-RIGHT_SWITCH = 10
-LEFT_SWITCH = 10
-UP_SWITCH = 10
+RIGHT_SWITCH = 27
+LEFT_SWITCH = 17
+UP_SWITCH = 22
 DOWN_SWITCH = 10
 
 GPIO.setup(RIGHT_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
@@ -43,13 +43,30 @@ GPIO.setup(UP_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(DOWN_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 # === Flywheel Init ===
+MAX_RPM = 400
 
+I1_PIN = 16
+I2_PIN = 20
+EN_PIN = 21
+
+GPIO.setup(I1_PIN, GPIO.OUT)
+GPIO.setup(I2_PIN, GPIO.OUT)
+GPIO.setup(EN_PIN, GPIO.OUT)
+GPIO.output(I1_PIN, GPIO.LOW)
+GPIO.output(I2_PIN, GPIO.LOW)
+
+pwm = GPIO.PWM(EN_PIN, 100)
+pwm.start(25)
 
 # === Servo Init ===
-# Physical/Board pin 32
-# GPIO/BCM pin 12
 SERVO_SIGNAL_PIN = 12
-servo = Servo(25)
+MAX_ANGLE = 20
+
+GPIO.setup(SERVO_SIGNAL_PIN, GPIO.OUT, initial=False)
+pwm_servo = GPIO.PWM(SERVO_SIGNAL_PIN, 50)
+pwm_servo.start(0)
+# servo = AngularServo(SERVO_SIGNAL_PIN, min_angle=-MAX_ANGLE, max_angle=MAX_ANGLE) # Change min and max angle here
+# servo.angle = 0
 
 # === Game Init ===
 game_start = False
@@ -107,7 +124,7 @@ def update_display(shooter_angle, flywheel_speed, extra_text):
         fill=255,
     )
 
-    text = f"Flywheel Speed: {int(flywheel_speed)}"
+    text = f"Flywheel RPM: {int(flywheel_speed)}"
     (font_width, font_height) = font.getsize(text)
     draw.text(
         (oled.width // 2 - font_width // 2, oled.height // 2 - font_height // 2),
@@ -131,11 +148,11 @@ def update_display(shooter_angle, flywheel_speed, extra_text):
 
 
 draw_menu()
+shooter_angle = 0
+flywheel_speed = 0
 
 while True:
     shoot_button_pressed = GPIO.input(SHOOT_BUTTON) == GPIO.HIGH
-    shooter_angle = 0
-    flywheel_speed = 0
 
     right_switch = GPIO.input(RIGHT_SWITCH) == GPIO.HIGH
     left_switch = GPIO.input(LEFT_SWITCH) == GPIO.HIGH
@@ -152,28 +169,46 @@ while True:
     # Game State
     else:
         if right_switch or left_switch or up_switch or down_switch:
-            flywheel_speed += 1 if up_switch else 0
-            flywheel_speed -= 1 if down_switch else 0
-            shooter_angle += 0.025 if right_switch else 0
-            shooter_angle -= 0.025 if left_switch else 0
+            flywheel_speed += 10 if up_switch and flywheel_speed < MAX_RPM else 0
+            flywheel_speed -= 10 if down_switch and flywheel_speed > 0 else 0
+            shooter_angle += 1 if right_switch and shooter_angle < MAX_ANGLE else 0
+            shooter_angle -= 1 if left_switch and shooter_angle > -MAX_ANGLE else 0
 
-            servo.value = shooter_angle
+            pwm_servo.ChangeDutyCycle(7.5 + (shooter_angle/10))
+
+            # servo.angle = shooter_angle * 100
+            # if right_switch:
+                # pwm_servo.ChangeDutyCycle(8.5)
+            # elif left_switch:
+                # pwm_servo.ChangeDutyCycle(6.5)
+            # else:
+                # pwm_servo.ChangeDutyCycle(0)
 
             update_display(shooter_angle, flywheel_speed, "Press to Shoot")
 
         if shoot_button_pressed:
-            # Set Flywheel Here
+            # Set Flywheel Speed
+            # Maybe change the ones below to I2_PIN depending on desired turn direction
+            GPIO.output(I1_PIN, GPIO.HIGH)
+            pwm.ChangeDutyCycle((flywheel_speed / MAX_RPM) * 100) # within the range [0, 100]
+
+            # for i in range(100):
+                # pwm.ChangeDutyCycle(i) # within the range [0, 100]
+                # time.sleep(0.2)
+
             for i in range(3):
                 update_display(shooter_angle, flywheel_speed, f"Drop in {3 - i}")
                 time.sleep(1)
 
-            for i in range(3):
-                update_display(shooter_angle, flywheel_speed, f"DROP NOW! {3 - i}")
+            for i in range(2):
+                update_display(shooter_angle, flywheel_speed, f"DROP NOW! {2 - i}")
                 time.sleep(1)
 
-            # Zero Flywheel Here
-            for i in range(3):
-                update_display(shooter_angle, flywheel_speed, f"Resetting {3 - i}")
+            # Zero Flywheel Speed
+            GPIO.output(I1_PIN, GPIO.LOW)
+
+            for i in range(2):
+                update_display(shooter_angle, flywheel_speed, f"Resetting {2 - i}")
                 time.sleep(1)
 
             update_display(shooter_angle, flywheel_speed, "Press to Shoot")
